@@ -17,6 +17,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/decode.h>
@@ -530,6 +531,11 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	if (!fsc->wb_pagevec_pool)
 		goto fail_trunc_wq;
 
+#ifdef CONFIG_CEPH_FSCACHE
+	/* fscache */
+	ceph_fscache_register_fsid_cookie(fsc);
+#endif
+
 	/* caps */
 	fsc->min_caps = fsopt->max_readdir;
 
@@ -553,6 +559,10 @@ fail:
 static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
 	dout("destroy_fs_client %p\n", fsc);
+
+#ifdef CONFIG_CEPH_FSCACHE
+	ceph_fscache_unregister_fsid_cookie(fsc);
+#endif
 
 	destroy_workqueue(fsc->wb_wq);
 	destroy_workqueue(fsc->pg_inv_wq);
@@ -588,6 +598,8 @@ static void ceph_inode_init_once(void *foo)
 
 static int __init init_caches(void)
 {
+	int error = -ENOMEM;
+
 	ceph_inode_cachep = kmem_cache_create("ceph_inode_info",
 				      sizeof(struct ceph_inode_info),
 				      __alignof__(struct ceph_inode_info),
@@ -611,15 +623,19 @@ static int __init init_caches(void)
 	if (ceph_file_cachep == NULL)
 		goto bad_file;
 
-	return 0;
+#ifdef CONFIG_CEPH_FSCACHE
+	if ((error = fscache_register_netfs(&ceph_cache_netfs)))
+		goto bad_file;
+#endif
 
+	return 0;
 bad_file:
 	kmem_cache_destroy(ceph_dentry_cachep);
 bad_dentry:
 	kmem_cache_destroy(ceph_cap_cachep);
 bad_cap:
 	kmem_cache_destroy(ceph_inode_cachep);
-	return -ENOMEM;
+	return error;
 }
 
 static void destroy_caches(void)
@@ -629,10 +645,15 @@ static void destroy_caches(void)
 	 * destroy cache.
 	 */
 	rcu_barrier();
+
 	kmem_cache_destroy(ceph_inode_cachep);
 	kmem_cache_destroy(ceph_cap_cachep);
 	kmem_cache_destroy(ceph_dentry_cachep);
 	kmem_cache_destroy(ceph_file_cachep);
+
+#ifdef CONFIG_CEPH_FSCACHE
+	fscache_unregister_netfs(&ceph_cache_netfs);
+#endif
 }
 
 

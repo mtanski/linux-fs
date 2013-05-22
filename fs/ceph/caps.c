@@ -10,6 +10,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 #include <linux/ceph/decode.h>
 #include <linux/ceph/messenger.h>
 
@@ -486,8 +487,14 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 	 * i_rdcache_gen.
 	 */
 	if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
-	    (had & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0)
+	    (had & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0) {
 		ci->i_rdcache_gen++;
+#ifdef CONFIG_CEPH_FSCACHE
+		/* Invalidate the cache for the whole file. */
+		dout("Invalidating inode data cache: %p", &ci->vfs_inode);
+		fscache_invalidate(ci->fscache);
+#endif
+	}
 
 	/*
 	 * if we are newly issued FILE_SHARED, mark dir not complete; we
@@ -2356,6 +2363,12 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
 	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
 	    !ci->i_wrbuffer_ref) {
+
+#ifdef CONFIG_CEPH_FSCACHE
+		/* Close the fscache on inode */
+		ceph_fscache_unregister_inode_cookie(ci);
+#endif
+
 		if (try_nonblocking_invalidate(inode) == 0) {
 			revoked_rdcache = 1;
 		} else {
@@ -2424,6 +2437,12 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		}
 		wake = 1;
 	}
+
+#ifdef CONFIG_CEPH_FSCACHE
+	/* Register cache (if needed); perform this after amny size change. */
+	if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)))
+		ceph_fscache_register_inode_cookie(session->s_mdsc->fsc, ci);
+#endif
 
 	/* check cap bits */
 	wanted = __ceph_caps_wanted(ci);

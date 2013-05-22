@@ -16,6 +16,10 @@
 
 #include <linux/ceph/libceph.h>
 
+#ifdef CONFIG_CEPH_FSCACHE
+#include <linux/fscache.h>
+#endif
+
 /* f_type in struct statfs */
 #define CEPH_SUPER_MAGIC 0x00c36400
 
@@ -89,6 +93,10 @@ struct ceph_fs_client {
 	struct dentry *debugfs_congestion_kb;
 	struct dentry *debugfs_bdi;
 	struct dentry *debugfs_mdsc, *debugfs_mdsmap;
+#endif
+
+#ifdef CONFIG_CEPH_FSCACHE
+	struct fscache_cookie *fscache;
 #endif
 };
 
@@ -318,6 +326,10 @@ struct ceph_inode_info {
 	struct work_struct i_pg_inv_work;  /* page invalidation work */
 
 	struct work_struct i_vmtruncate_work;
+
+#ifdef CONFIG_CEPH_FSCACHE
+	struct fscache_cookie *fscache;
+#endif
 
 	struct inode vfs_inode; /* at end */
 };

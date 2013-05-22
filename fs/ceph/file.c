@@ -11,6 +11,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 
 /*
  * Ceph file operations
@@ -67,10 +68,17 @@ out:
 static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 {
 	struct ceph_file_info *cf;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	int ret = 0;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
+#ifdef CONFIG_CEPH_FSCACHE
+		spin_lock(&ci->i_ceph_lock);
+		ceph_fscache_register_inode_cookie(fsc, ci);
+		spin_lock(&ci->i_ceph_lock);
+#endif
 	case S_IFDIR:
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
 		     inode->i_mode);
@@ -181,6 +189,7 @@ int ceph_open(struct inode *inode, struct file *file)
 		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
 	}
+
 	spin_unlock(&ci->i_ceph_lock);
 
 	dout("open fmode %d wants %s\n", fmode, ceph_cap_string(wanted));

@@ -12,6 +12,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 #include <linux/ceph/decode.h>
 
 /*
@@ -377,6 +378,10 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 
 	INIT_WORK(&ci->i_vmtruncate_work, ceph_vmtruncate_work);
 
+#ifdef CONFIG_CEPH_FSCACHE
+	ci->fscache = NULL;
+#endif
+
 	return &ci->vfs_inode;
 }
 
@@ -395,6 +400,10 @@ void ceph_destroy_inode(struct inode *inode)
 	struct rb_node *n;
 
 	dout("destroy_inode %p ino %llx.%llx\n", inode, ceph_vinop(inode));
+
+#ifdef CONFIG_CEPH_FSCACHE
+	ceph_fscache_unregister_inode_cookie(ci);
+#endif
 
 	ceph_queue_caps_release(inode);
 
@@ -429,7 +438,6 @@ void ceph_destroy_inode(struct inode *inode)
 
 	call_rcu(&inode->i_rcu, ceph_i_callback);
 }
-
 
 /*
  * Helpers to fill in size, ctime, mtime, and atime.  We have to be
@@ -632,6 +640,14 @@ static int fill_inode(struct inode *inode,
 	ceph_fill_file_time(inode, issued,
 			    le32_to_cpu(info->time_warp_seq),
 			    &ctime, &mtime, &atime);
+
+#ifdef CONFIG_CEPH_FSCACHE
+	/* Notify the cache that size has changed */
+	if (queue_trunc && ci->fscache) {
+		pr_info("size changed inode: %p cap flags\n", &ci->vfs_inode);
+		fscache_attr_changed(ci->fscache);
+	}
+#endif
 
 	/* only update max_size on auth cap */
 	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
@@ -1066,7 +1082,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			 * complete.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
-			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 
+			dout("dn %p gets new offset %lld\n", req->r_old_dentry,
 			     ceph_dentry(req->r_old_dentry)->offset);
 
 			dn = req->r_old_dentry;  /* use old_dentry */
@@ -1429,6 +1445,11 @@ static void ceph_invalidate_work(struct work_struct *work)
 	}
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&ci->i_ceph_lock);
+
+#ifdef CONFIG_CEPH_FSCACHE
+	pr_info("cache invalidating inode: %p cap flags\n", &ci->vfs_inode);
+	fscache_invalidate(ci->fscache);
+#endif
 
 	truncate_inode_pages(&inode->i_data, 0);
 
