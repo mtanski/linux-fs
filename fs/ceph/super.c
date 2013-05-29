@@ -143,6 +143,8 @@ enum {
 	Opt_nodcache,
 	Opt_ino32,
 	Opt_noino32,
+	Opt_fscache,
+	Opt_nofscache
 };
 
 static match_table_t fsopt_tokens = {
@@ -168,6 +170,8 @@ static match_table_t fsopt_tokens = {
 	{Opt_nodcache, "nodcache"},
 	{Opt_ino32, "ino32"},
 	{Opt_noino32, "noino32"},
+	{Opt_fscache, "fsc"},
+	{Opt_nofscache, "nofsc"},
 	{-1, NULL}
 };
 
@@ -260,6 +264,12 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_noino32:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_INO32;
+		break;
+	case Opt_fscache:
+		fsopt->flags |= CEPH_MOUNT_OPT_FSCACHE;
+		break;
+	case Opt_nofscache:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_FSCACHE;
 		break;
 	default:
 		BUG_ON(token);
@@ -423,6 +433,10 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",dcache");
 	else
 		seq_puts(m, ",nodcache");
+	if (fsopt->flags & CEPH_MOUNT_OPT_FSCACHE)
+		seq_puts(m, ",fsc");
+	else
+		seq_puts(m, ",nofsc");
 
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
@@ -532,8 +546,8 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		goto fail_trunc_wq;
 
 #ifdef CONFIG_CEPH_FSCACHE
-	/* fscache */
-	ceph_fscache_register_fsid_cookie(fsc);
+	if ((fsopt->flags & CEPH_MOUNT_OPT_FSCACHE))
+		ceph_fscache_register_fsid_cookie(fsc);
 #endif
 
 	/* caps */
