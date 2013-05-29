@@ -77,7 +77,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 #ifdef CONFIG_CEPH_FSCACHE
 		spin_lock(&ci->i_ceph_lock);
 		ceph_fscache_register_inode_cookie(fsc, ci);
-		spin_lock(&ci->i_ceph_lock);
+		spin_unlock(&ci->i_ceph_lock);
 #endif
 	case S_IFDIR:
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
