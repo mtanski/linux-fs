@@ -244,7 +244,8 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	SetPageUptodate(page);
 
 #ifdef CONFIG_CEPH_FSCACHE
-	ceph_readpage_to_fscache(inode, page);
+	if (err == 0)
+		ceph_readpage_to_fscache(inode, page);
 #endif
 
 out:
