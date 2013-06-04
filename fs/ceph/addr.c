@@ -290,10 +290,10 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 		     page->index);
 		flush_dcache_page(page);
 		SetPageUptodate(page);
-		unlock_page(page);
 #ifdef CONFIG_CEPH_FSCACHE
 		ceph_readpage_to_fscache(inode, page);
 #endif
+		unlock_page(page);
 		page_cache_release(page);
 		bytes -= PAGE_CACHE_SIZE;
 	}
