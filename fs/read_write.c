@@ -833,14 +833,19 @@ static ssize_t do_readv_writev(int type, struct file *file,
 		file_start_write(file);
 	}
 
-	if (iter_fn)
+	if (iter_fn) {
 		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
 						pos, iter_fn, flags);
-	else if (fnv)
-		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-						pos, fnv);
-	else
-		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	} else {
+		if (type == READ && (flags & RWF_NONBLOCK))
+			return -EAGAIN;
+
+		if (fnv)
+			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
+							pos, fnv);
+		else
+			ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	}
 
 	if (type != READ)
 		file_end_write(file);
@@ -864,8 +869,10 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_READ))
 		return -EINVAL;
-	if (flags & ~0)
+	if (flags & ~RWF_NONBLOCK)
 		return -EINVAL;
+	if ((file->f_flags & O_DIRECT) && (flags & RWF_NONBLOCK))
+		return -EAGAIN;
 
 	return do_readv_writev(READ, file, vec, vlen, pos, flags);
 }

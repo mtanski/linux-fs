@@ -1477,6 +1477,9 @@ struct block_device_operations;
 #define HAVE_COMPAT_IOCTL 1
 #define HAVE_UNLOCKED_IOCTL 1
 
+/* These flags are used for the readv/writev syscalls with flags. */
+#define RWF_NONBLOCK 0x00000001
+
 struct iov_iter;
 
 struct file_operations {
