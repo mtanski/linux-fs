@@ -1452,6 +1452,7 @@ static void shrink_readahead_size_eio(struct file *filp,
  * @ppos:	current file position
  * @iter:	data destination
  * @written:	already copied
+ * @flags:	optional flags
  *
  * This is a generic file read routine, and uses the
  * mapping->a_ops->readpage() function for the actual low-level stuff.
@@ -1460,7 +1461,7 @@ static void shrink_readahead_size_eio(struct file *filp,
  * of the logic when it comes to error handling etc.
  */
 static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
-		struct iov_iter *iter, ssize_t written)
+		struct iov_iter *iter, ssize_t written, int flags)
 {
 	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
@@ -1731,7 +1732,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		}
 	}
 
-	retval = do_generic_file_read(file, ppos, iter, retval);
+	retval = do_generic_file_read(file, ppos, iter, retval, iocb->ki_flags);
 out:
 	return retval;
 }
