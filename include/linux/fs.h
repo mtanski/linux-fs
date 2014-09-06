@@ -315,6 +315,7 @@ struct address_space;
 struct writeback_control;
 
 #define IOCB_EVENTFD		(1 << 0)
+#define IOCB_DONTWAIT		(1 << 1)
 
 struct kiocb {
 	struct file		*ki_filp;
@@ -1553,6 +1554,8 @@ struct block_device_operations;
 #define NOMMU_VMFLAGS \
 	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
 
+/* These flags are used for the readv/writev syscalls with flags. */
+#define RWF_DONTWAIT 0x00000001
 
 struct iov_iter;
 

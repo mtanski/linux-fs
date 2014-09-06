@@ -170,8 +170,11 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	ssize_t result;
 
-	if (iocb->ki_filp->f_flags & O_DIRECT)
+	if (iocb->ki_filp->f_flags & O_DIRECT) {
+		if (iocb->ki_flags & IOCB_DONTWAIT)
+			return -EAGAIN;
 		return nfs_file_direct_read(iocb, to, iocb->ki_pos);
+	}
 
 	dprintk("NFS: read(%pD2, %zu@%lu)\n",
 		iocb->ki_filp,

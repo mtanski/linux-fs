@@ -3003,6 +3003,9 @@ ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
 	struct cifs_readdata *rdata, *tmp;
 	struct list_head rdata_list;
 
+	if (iocb->ki_flags & IOCB_DONTWAIT)
+		return -EAGAIN;
+
 	len = iov_iter_count(to);
 	if (!len)
 		return 0;
@@ -3120,6 +3123,9 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
 	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
 		return generic_file_read_iter(iocb, to);
+
+	if (iocb->ki_flags & IOCB_DONTWAIT)
+		return -EAGAIN;
 
 	/*
 	 * We need to hold the sem to be sure nobody modifies lock list

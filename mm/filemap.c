@@ -1489,6 +1489,8 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
 find_page:
 		page = find_get_page(mapping, index);
 		if (!page) {
+			if (flags & IOCB_DONTWAIT)
+				goto would_block;
 			page_cache_sync_readahead(mapping,
 					ra, filp,
 					index, last_index - index);
@@ -1580,6 +1582,11 @@ page_ok:
 		continue;
 
 page_not_up_to_date:
+		if (flags & IOCB_DONTWAIT) {
+			page_cache_release(page);
+			goto would_block;
+		}
+
 		/* Get exclusive access to the page ... */
 		error = lock_page_killable(page);
 		if (unlikely(error))
@@ -1597,6 +1604,12 @@ page_not_up_to_date_locked:
 		if (PageUptodate(page)) {
 			unlock_page(page);
 			goto page_ok;
+		}
+
+		if (flags & IOCB_DONTWAIT) {
+			unlock_page(page);
+			page_cache_release(page);
+			goto would_block;
 		}
 
 readpage:
@@ -1669,6 +1682,8 @@ no_cached_page:
 		goto readpage;
 	}
 
+would_block:
+	error = -EAGAIN;
 out:
 	ra->prev_pos = prev_index;
 	ra->prev_pos <<= PAGE_CACHE_SHIFT;
@@ -1700,6 +1715,9 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		struct inode *inode = mapping->host;
 		size_t count = iov_iter_count(iter);
 		loff_t size;
+
+		if (iocb->ki_flags & IOCB_DONTWAIT)
+			return -EAGAIN;
 
 		if (!count)
 			goto out; /* skip atime */

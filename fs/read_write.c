@@ -706,6 +706,9 @@ static ssize_t do_iter_readv_writev(struct file *filp, int rw, const struct iove
 	init_sync_kiocb(&kiocb, filp);
 	kiocb.ki_pos = *ppos;
 
+	if (flags & RWF_DONTWAIT)
+		kiocb.ki_flags |= IOCB_DONTWAIT;
+
 	iov_iter_init(&iter, rw, iov, nr_segs, len);
 	ret = fn(&kiocb, &iter);
 	BUG_ON(ret == -EIOCBQUEUED);
@@ -873,14 +876,19 @@ static ssize_t do_readv_writev(int type, struct file *file,
 		file_start_write(file);
 	}
 
-	if (iter_fn)
+	if (iter_fn) {
 		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
 						pos, iter_fn, flags);
-	else if (fnv)
-		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-						pos, fnv);
-	else
-		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	} else {
+		if (type == READ && (flags & RWF_DONTWAIT))
+			return -EAGAIN;
+
+		if (fnv)
+			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
+							pos, fnv);
+		else
+			ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	}
 
 	if (type != READ)
 		file_end_write(file);
@@ -904,8 +912,10 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_READ))
 		return -EINVAL;
-	if (flags & ~0)
+	if (flags & ~RWF_DONTWAIT)
 		return -EINVAL;
+	if ((file->f_flags & O_DIRECT) && (flags & RWF_DONTWAIT))
+		return -EAGAIN;
 
 	return do_readv_writev(READ, file, vec, vlen, pos, flags);
 }
@@ -1107,14 +1117,19 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 		file_start_write(file);
 	}
 
-	if (iter_fn)
+	if (iter_fn) {
 		ret = do_iter_readv_writev(file, type, iov, nr_segs, tot_len,
 						pos, iter_fn, flags);
-	else if (fnv)
-		ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
-						pos, fnv);
-	else
-		ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	} else {
+		if (type == READ && (flags & RWF_DONTWAIT))
+			return -EAGAIN;
+
+		if (fnv)
+			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
+							pos, fnv);
+		else
+			ret = do_loop_readv_writev(file, iov, nr_segs, pos, fn);
+	}
 
 	if (type != READ)
 		file_end_write(file);
@@ -1143,7 +1158,11 @@ static size_t compat_readv(struct file *file,
 	ret = -EINVAL;
 	if (!(file->f_mode & FMODE_CAN_READ))
 		goto out;
-	if (flags & ~0)
+	if (flags & ~RWF_DONTWAIT)
+		goto out;
+
+	ret = -EAGAIN;
+	if ((file->f_flags & O_DIRECT) && (flags & RWF_DONTWAIT))
 		goto out;
 
 	ret = compat_do_readv_writev(READ, file, vec, vlen, pos, flags);
