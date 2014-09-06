@@ -2534,6 +2534,12 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 			filp->f_path.dentry->d_name.name,
 			to->nr_segs);	/* GRRRRR */
 
+	/*
+	 * No non-blocking reads for ocfs2 for now.  Might be doable with
+	 * non-blocking cluster lock helpers.
+	 */
+	if (iocb->ki_flags & IOCB_DONTWAIT)
+		return -EAGAIN;
 
 	if (!inode) {
 		ret = -EINVAL;
