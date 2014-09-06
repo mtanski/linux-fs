@@ -1528,6 +1528,10 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	ssize_t retval = 0;
 	loff_t *ppos = &iocb->ki_pos;
 
+	/* XXX: should be easily supportable */
+	if (iocb->ki_rwflags & RWF_NONBLOCK)
+		return -EAGAIN;
+
 	/*
 	 * Might this read be for a stacking filesystem?  Then when reading
 	 * holes of a sparse file, we actually need to allocate those pages,

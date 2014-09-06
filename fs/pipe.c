@@ -302,7 +302,8 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			 */
 			if (ret)
 				break;
-			if (filp->f_flags & O_NONBLOCK) {
+			if ((filp->f_flags & O_NONBLOCK) ||
+			    (iocb->ki_rwflags & RWF_NONBLOCK)) {
 				ret = -EAGAIN;
 				break;
 			}

@@ -280,6 +280,10 @@ xfs_file_read_iter(
 
 	XFS_STATS_INC(xs_read_calls);
 
+	/* XXX: need a non-blocking iolock helper, shouldn't be too hard */
+	if (iocb->ki_rwflags & RWF_NONBLOCK)
+		return -EAGAIN;
+
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= XFS_IO_ISDIRECT;
 	if (file->f_mode & FMODE_NOCMTIME)

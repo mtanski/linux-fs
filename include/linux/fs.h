@@ -1531,6 +1531,8 @@ struct block_device_operations;
 #define NOMMU_VMFLAGS \
 	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
 
+/* These flags are used for the readv/writev syscalls with flags. */
+#define RWF_NONBLOCK 0x00000001
 
 struct iov_iter;
 
