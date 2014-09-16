@@ -1456,7 +1456,7 @@ static void shrink_readahead_size_eio(struct file *filp,
  * of the logic when it comes to error handling etc.
  */
 static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
-		struct iov_iter *iter, ssize_t written)
+		struct iov_iter *iter, ssize_t written, int flags)
 {
 	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;

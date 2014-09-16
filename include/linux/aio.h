@@ -52,6 +52,8 @@ struct kiocb {
 	 * this is the underlying eventfd context to deliver events to.
 	 */
 	struct eventfd_ctx	*ki_eventfd;
+
+	int			ki_rwflags;
 };
 
 static inline bool is_sync_kiocb(struct kiocb *kiocb)
