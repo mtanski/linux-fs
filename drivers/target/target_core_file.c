@@ -351,9 +351,9 @@ static int fd_do_rw(struct se_cmd *cmd, struct scatterlist *sgl,
 	set_fs(get_ds());
 
 	if (is_write)
-		ret = vfs_writev(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_writev(fd, &iov[0], sgl_nents, &pos, 0);
 	else
-		ret = vfs_readv(fd, &iov[0], sgl_nents, &pos);
+		ret = vfs_readv(fd, &iov[0], sgl_nents, &pos, 0);
 
 	set_fs(old_fs);
 
@@ -534,7 +534,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 
 	old_fs = get_fs();
 	set_fs(get_ds());
-	rc = vfs_writev(f, &iov[0], iov_num, &pos);
+	rc = vfs_writev(f, &iov[0], iov_num, &pos, 0);
 	set_fs(old_fs);
 
 	vfree(iov);
