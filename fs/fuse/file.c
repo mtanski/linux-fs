@@ -1248,6 +1248,8 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written += written_buffered;
 		iocb->ki_pos = pos + written_buffered;
 	} else {
+		if (iocb->ki_rwflags & RWF_DSYNC)
+			return -EINVAL;
 		written = fuse_perform_write(file, mapping, from, pos);
 		if (written >= 0)
 			iocb->ki_pos = pos + written;

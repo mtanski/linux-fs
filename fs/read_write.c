@@ -841,6 +841,8 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	} else {
 		if (type == READ && (flags & RWF_NONBLOCK))
 			return -EAGAIN;
+		if (type == WRITE && (flags & RWF_DSYNC))
+			return -EINVAL;
 
 		if (fnv)
 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
@@ -888,7 +890,7 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 		return -EBADF;
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
-	if (flags & ~0)
+	if (flags & ~RWF_DSYNC)
 		return -EINVAL;
 
 	return do_readv_writev(WRITE, file, vec, vlen, pos, flags);
@@ -1082,6 +1084,8 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	} else {
 		if (type == READ && (flags & RWF_NONBLOCK))
 			return -EAGAIN;
+		if (type == WRITE && (flags & RWF_DSYNC))
+			return -EINVAL;
 
 		if (fnv)
 			ret = do_sync_readv_writev(file, iov, nr_segs, tot_len,
@@ -1221,7 +1225,7 @@ static size_t compat_writev(struct file *file,
 	ret = -EINVAL;
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		goto out;
-	if (flags & ~0)
+	if (flags & ~RWF_DSYNC)
 		goto out;
 
 	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos, flags);

@@ -983,7 +983,9 @@ retry_snap:
 	ceph_put_cap_refs(ci, got);
 
 	if (written >= 0 &&
-	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
+	    ((file->f_flags & O_SYNC) ||
+	     IS_SYNC(file->f_mapping->host) ||
+	     (iocb->ki_rwflags & RWF_DSYNC) ||
 	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
 		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
 		if (err < 0)
