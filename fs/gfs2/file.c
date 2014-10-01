@@ -895,8 +895,13 @@ retry:
 		gfs2_quota_unlock(ip);
 	}
 
-	if (error == 0)
-		error = generic_write_sync(file, pos, count);
+	if (error)
+		goto out_unlock;
+
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host)) {
+		error = vfs_fsync_range(file, pos, pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
+	}
 	goto out_unlock;
 
 out_trans_fail:

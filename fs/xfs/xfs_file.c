@@ -792,14 +792,8 @@ xfs_file_write_iter(
 		ret = xfs_file_buffered_aio_write(iocb, from);
 
 	if (ret > 0) {
-		ssize_t err;
-
 		XFS_STATS_ADD(xs_write_bytes, ret);
-
-		/* Handle various SYNC-type writes */
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
-		if (err < 0)
-			ret = err;
+		ret = generic_write_sync(iocb, ret);
 	}
 	return ret;
 }

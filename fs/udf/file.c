@@ -155,16 +155,9 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	retval = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
-	if (retval > 0) {
-		ssize_t err;
-
+	if (retval > 0)
 		mark_inode_dirty(inode);
-		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
-		if (err < 0)
-			retval = err;
-	}
-
-	return retval;
+	return generic_write_sync(iocb, retval);
 }
 
 long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
