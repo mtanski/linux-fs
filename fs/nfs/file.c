@@ -652,13 +652,15 @@ static const struct vm_operations_struct nfs_file_vm_ops = {
 	.remap_pages = generic_file_remap_pages,
 };
 
-static int nfs_need_sync_write(struct file *filp, struct inode *inode)
+static int nfs_need_sync_write(struct kiocb *iocb, struct inode *inode)
 {
 	struct nfs_open_context *ctx;
 
-	if (IS_SYNC(inode) || (filp->f_flags & O_DSYNC))
+	if (IS_SYNC(inode) ||
+	    (iocb->ki_filp->f_flags & O_DSYNC) ||
+	    (iocb->ki_rwflags & RWF_DSYNC))
 		return 1;
-	ctx = nfs_file_open_context(filp);
+	ctx = nfs_file_open_context(iocb->ki_filp);
 	if (test_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags) ||
 	    nfs_ctx_key_to_expire(ctx))
 		return 1;
@@ -705,7 +707,7 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		written = result;
 
 	/* Return error values for O_DSYNC and IS_SYNC() */
-	if (result >= 0 && nfs_need_sync_write(file, inode)) {
+	if (result >= 0 && nfs_need_sync_write(iocb, inode)) {
 		int err = vfs_fsync(file, 0);
 		if (err < 0)
 			result = err;

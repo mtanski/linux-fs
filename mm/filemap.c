@@ -2669,7 +2669,9 @@ int generic_write_sync(struct kiocb *iocb, loff_t count)
 	struct file *file = iocb->ki_filp;
 
 	if (count > 0 &&
-	    ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))) {
+	    ((file->f_flags & O_DSYNC) ||
+	     (iocb->ki_rwflags & RWF_DSYNC) ||
+	     IS_SYNC(file->f_mapping->host))) {
 		bool fdatasync = !(file->f_flags & __O_SYNC);
 		ssize_t ret = 0;
 

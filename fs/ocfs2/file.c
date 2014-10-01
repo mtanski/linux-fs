@@ -2374,8 +2374,10 @@ out_dio:
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(file->f_flags & O_DIRECT));
 
-	if (((file->f_flags & O_DSYNC) && !direct_io) || IS_SYNC(inode) ||
-	    ((file->f_flags & O_DIRECT) && !direct_io)) {
+	if (((file->f_flags & O_DSYNC) && !direct_io) ||
+	    IS_SYNC(inode) ||
+	    ((file->f_flags & O_DIRECT) && !direct_io) ||
+	    (iocb->ki_rwflags & RWF_DSYNC)) {
 		ret = filemap_fdatawrite_range(file->f_mapping, *ppos,
 					       *ppos + count - 1);
 		if (ret < 0)
