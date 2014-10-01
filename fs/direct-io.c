@@ -257,12 +257,8 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	inode_dio_done(dio->inode);
 	if (is_async) {
 		if (dio->rw & WRITE) {
-			int err;
-
-			err = generic_write_sync(dio->iocb->ki_filp, offset,
-						 transferred);
-			if (err < 0 && ret > 0)
-				ret = err;
+			dio->iocb->ki_pos = offset + transferred;
+			ret = generic_write_sync(dio->iocb, ret);
 		}
 
 		aio_complete(dio->iocb, ret, 0);

@@ -2706,13 +2706,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 		rc = __generic_file_write_iter(iocb, from);
 		mutex_unlock(&inode->i_mutex);
 
-		if (rc > 0) {
-			ssize_t err;
-
-			err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-			if (err < 0)
-				rc = err;
-		}
+		rc = generic_write_sync(iocb, rc);
 	} else {
 		mutex_unlock(&inode->i_mutex);
 	}

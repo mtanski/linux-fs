@@ -2664,6 +2664,24 @@ out:
 }
 EXPORT_SYMBOL(__generic_file_write_iter);
 
+int generic_write_sync(struct kiocb *iocb, loff_t count)
+{
+	struct file *file = iocb->ki_filp;
+
+	if (count > 0 &&
+	    ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))) {
+		bool fdatasync = !(file->f_flags & __O_SYNC);
+		ssize_t ret = 0;
+
+		ret = vfs_fsync_range(file, iocb->ki_pos - count,
+				iocb->ki_pos - 1, fdatasync);
+		if (ret < 0)
+			return ret;
+	}
+	return count;
+}
+EXPORT_SYMBOL(generic_write_sync);
+
 /**
  * generic_file_write_iter - write data to a file
  * @iocb:	IO state structure
@@ -2675,22 +2693,14 @@ EXPORT_SYMBOL(__generic_file_write_iter);
  */
 ssize_t generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	ssize_t ret;
 
 	mutex_lock(&inode->i_mutex);
 	ret = __generic_file_write_iter(iocb, from);
 	mutex_unlock(&inode->i_mutex);
 
-	if (ret > 0) {
-		ssize_t err;
-
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
-		if (err < 0)
-			ret = err;
-	}
-	return ret;
+	return generic_write_sync(iocb, ret);
 }
 EXPORT_SYMBOL(generic_file_write_iter);
 
